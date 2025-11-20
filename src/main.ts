@@ -27,12 +27,45 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.enablePan = false;
-controls.minDistance = 2;
-controls.maxDistance = 15;
-controls.minPolarAngle = 0;
-controls.maxPolarAngle = Math.PI;
+controls.enableZoom = false;
 controls.target.set(0, 0.5, 0);
 controls.update();
+
+let targetRotationX = 0;
+let targetRotationY = 0;
+let rotationSpeed = 0.003;
+let baseRadius = 4;
+
+window.addEventListener("mousemove", (e) => {
+  const deltaX = e.movementX || 0;
+  const deltaY = e.movementY || 0;
+
+  targetRotationY -= deltaX * rotationSpeed;
+  targetRotationX -= deltaY * rotationSpeed;
+
+  targetRotationX = Math.max(
+    -Math.PI / 2.5,
+    Math.min(Math.PI / 2, targetRotationX)
+  );
+});
+
+function updateCameraRotation() {
+  const radius = baseRadius;
+  const x = radius * Math.sin(targetRotationY) * Math.cos(targetRotationX);
+  const y = radius * Math.sin(targetRotationX);
+  const z = radius * Math.cos(targetRotationY) * Math.cos(targetRotationX);
+
+  camera.position.set(x, y + 1, z);
+  camera.lookAt(controls.target);
+}
+
+window.addEventListener("resize", () => {
+  const aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = aspect;
+  camera.fov = 60 * (aspect < 1 ? 1.1 : 1);
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 // освещение
 const ambientLight = new THREE.AmbientLight(0xffe6cc, 0.6);
@@ -56,6 +89,7 @@ const plane = new THREE.Mesh(
   new THREE.PlaneGeometry(20, 20),
   new THREE.MeshStandardMaterial({ color: 0x2a2115, roughness: 0.8 })
 );
+
 plane.rotation.x = -Math.PI / 2;
 plane.position.y = -0.5;
 plane.receiveShadow = true;
@@ -84,11 +118,26 @@ loader.load("/model.fbx", (object) => {
         reflectivity: 0.6,
         clearcoat: 0.4,
         clearcoatRoughness: 0.2,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
       });
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       baseMeshes.push(mesh);
+
+      const goldColors = [0xb76e79, 0xd4af37, 0xa8c7d8, 0x3a3a3a];
+      let currentColorIndex = 1;
+
+      window.addEventListener("click", () => {
+        if (!baseMeshes.length) return;
+
+        currentColorIndex = (currentColorIndex + 1) % goldColors.length;
+        const newColor = goldColors[currentColorIndex];
+
+        baseMeshes.forEach((mesh) => {
+          const mat = mesh.material as THREE.MeshPhysicalMaterial;
+          mat.color.setHex(newColor);
+        });
+      });
     }
   });
 
@@ -110,15 +159,18 @@ loader.load("/model.fbx", (object) => {
         newPositions[i * 3 + 1] = position.getY(i) + normal.getY(i) * offset;
         newPositions[i * 3 + 2] = position.getZ(i) + normal.getZ(i) * offset;
       }
-      geometry.setAttribute("position", new THREE.BufferAttribute(newPositions, 3));
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(newPositions, 3)
+      );
 
       mesh.geometry = geometry;
       mesh.material = new THREE.MeshBasicMaterial({
         color: 0xffffff,
-        side: THREE.DoubleSide, // теперь виден и снаружи, и изнутри
+        side: THREE.DoubleSide,
         transparent: true,
-        opacity: 0.25, // слегка прозрачный, чтобы не перекрывал золото
-        depthWrite: false
+        opacity: 0.25,
+        depthWrite: false,
       });
       mesh.renderOrder = 1;
     }
@@ -137,15 +189,10 @@ loader.load("/model.fbx", (object) => {
   model = group;
 });
 
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  updateCameraRotation();
   renderer.render(scene, camera);
 }
 animate();
