@@ -77,7 +77,9 @@ let directionalLight: THREE.DirectionalLight | null = null;
 let innerLight: THREE.PointLight | null = null;
 
 const loader = new FBXLoader();
-loader.load("/model.fbx", (object) => {
+
+const base = import.meta.env.BASE_URL
+loader.load(`${base}model.fbx`, (object) => {
   model = object;
   model.scale.set(0.05, 0.05, 0.05);
 
