@@ -5,7 +5,7 @@ const isProd = process.env.NODE_ENV === 'production'
 
 export default defineConfig({
   plugins: [vue()],
-  base: isProd ? '/TON-3D-model/' : '/',
+  base: '/TON-3D-model/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
